@@ -1,11 +1,13 @@
-Dependency
+# Dependency
+
 Ensure the following software is installed on your control node (the machine from which you run the playbook):
 
-Ansible (version 2.9 or later)
-Expect
-Directory Structure
-c
-Copy code
+- **Ansible** (version 2.9 or later)
+- **Expect**
+
+# Directory Structure
+
+```plaintext
 playbook_directory/
 ├── change_password.exp
 ├── change_password.yml
@@ -13,11 +15,16 @@ playbook_directory/
 │   ├── 10.1.101.102.yml
 │   ├── 10.1.101.103.yml
 │   └── 10.1.101.104.yml
-├── hosts.ini
-change_password.exp
-expect
-Copy code
+└── hosts.ini
+```
+
+# Expect Script: `change_password.exp`
+
+This Expect script automates the password change process.
+
+```bash
 #!/usr/bin/expect -f
+
 # This Expect script automates the password change process
 
 set timeout 120
@@ -38,7 +45,7 @@ spawn ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $user@$hos
 
 # Handle initial password prompt
 expect {
-    -re {.*[Pp]assword:.*} {
+    -re {.[Pp]assword:.} {
         send "$initial_password\r"
     }
     timeout {
@@ -49,7 +56,7 @@ expect {
 
 # Handle any motd or login banners until we get to the Shape prompt
 expect {
-    -re {(\x1B\[.*?m)*Shape.*-> } {
+    -re {(\x1B[.*?m)Shape.-> } {
         send "run bash\r"
     }
     timeout {
@@ -71,7 +78,7 @@ expect {
 
 # Wait for bash shell prompt
 expect {
-    -re {\[.*@.*\][#$] } {
+    -re {[#$] } {
         # First attempt to change password
         send "passwd\r"
     }
@@ -116,7 +123,7 @@ expect {
 
 # Exit bash shell
 expect {
-    -re {\[.*@.*\][#$] } {
+    -re {[#$] } {
         send "exit\r"
     }
     timeout {
@@ -128,9 +135,13 @@ expect {
 # Close SSH session
 expect eof
 exit 0
-change_password.yml
-yaml
-Copy code
+```
+
+# Ansible Playbook: `change_password.yml`
+
+This Ansible playbook changes the password on all specified hosts using the Expect script.
+
+```yaml
 - hosts: all
   gather_facts: no
   vars:
@@ -147,25 +158,38 @@ Copy code
       shell: "./change_password.exp {{ host }} {{ user }} '{{ initial_pass }}' '{{ new_pass }}'"
       register: change_password_result
       failed_when: change_password_result.rc != 0
-hosts.ini
-Copy code
+```
+
+# Inventory File: `hosts.ini`
+
+Specify the target hosts in this inventory file.
+
+```ini
 10.1.101.102
-host_vars/host.yml (vault this, replace host with SSE name or IP)
-yaml
-Copy code
----
+```
+
+# Host Variables: `host_vars/host.yml` (Vault this File)
+
+Store sensitive passwords in this file and ensure it's vaulted for security.
+
+```yaml
 initial_password: 'AllMyMaster123'
 new_password: 'NewPassword456'
-Example Demo
-Execute
-css
-Copy code
+```
+
+# Example Usage
+
+Execute the following command:
+
+```bash
 ansible-playbook -i hosts.ini change_password.yml --ask-vault-pass
-Output
-markdown
-Copy code
+```
+
+## Output Example
+
+```bash
 ansible-playbook -i hosts.ini change_password.yml --ask-vault-pass
-Vault password: 
+Vault password:
 
 PLAY [all] *************************************************************************************************
 
@@ -173,6 +197,5 @@ TASK [Change password via Expect script] ***************************************
 changed: [10.1.101.102 -> localhost]
 
 PLAY RECAP *************************************************************************************************
-10.1.101.102               : ok=1    changed=1    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
-
-root@b8f22a34790e:/opt/playbooks# 
+10.1.101.102               : ok=1    changed=1    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0
+```
